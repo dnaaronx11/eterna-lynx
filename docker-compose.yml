@@ -1,0 +1,253 @@
+version: "3.9"
+
+networks:
+  public_creative_net:
+    driver: bridge
+  identity_auth_net:
+    driver: bridge
+  hard_isolated_secure_net:
+    driver: bridge
+    internal: true
+
+volumes:
+  pg_data:
+  redis_data:
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: eterna_pg
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - identity_auth_net
+      - hard_isolated_secure_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: eterna_redis
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - identity_auth_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "PING"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: eterna_nats
+    command: ["-js", "--auth", "${NATS_PASSWORD}", "--user", "${NATS_USER}"]
+    networks:
+      - identity_auth_net
+    healthcheck:
+      test: ["CMD", "nats", "--server", "nats://localhost:4222", "account", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: eterna_kafka
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+    networks:
+      - identity_auth_net
+    profiles:
+      - kafka
+
+  spop:
+    build:
+      context: services/shared/spop
+      dockerfile: Dockerfile
+    container_name: eterna_spop
+    environment:
+      SPOP_HOST: ${SPOP_HOST}
+      SPOP_PORT: ${SPOP_PORT}
+      NATS_USER: ${NATS_USER}
+      NATS_PASSWORD: ${NATS_PASSWORD}
+    depends_on:
+      - nats
+    networks:
+      - public_creative_net
+      - identity_auth_net
+
+  eterna_net:
+    build:
+      context: services/gateway/eterna-net
+      dockerfile: Dockerfile
+    container_name: eterna_net
+    environment:
+      NODE_ENV: production
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      NATS_USER: ${NATS_USER}
+      NATS_PASSWORD: ${NATS_PASSWORD}
+    depends_on:
+      - spop
+      - redis
+      - nats
+    networks:
+      - public_creative_net
+      - identity_auth_net
+
+  financialynx:
+    build:
+      context: services/finance/financialynx
+      dockerfile: Dockerfile
+    container_name: financialynx
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      NATS_USER: ${NATS_USER}
+      NATS_PASSWORD: ${NATS_PASSWORD}
+    depends_on:
+      - postgres
+      - nats
+    networks:
+      - identity_auth_net
+
+  eternabridge:
+    build:
+      context: services/shared/eternabridge
+      dockerfile: Dockerfile
+    container_name: eternabridge
+    environment:
+      BRIDGE_POLICY_PATH: ${BRIDGE_POLICY_PATH}
+    networks:
+      - identity_auth_net
+      - hard_isolated_secure_net
+
+  vaultlynx:
+    build:
+      context: services/security/vaultlynx
+      dockerfile: Dockerfile
+    container_name: vaultlynx
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      BRIDGE_POLICY_PATH: ${BRIDGE_POLICY_PATH}
+    depends_on:
+      - postgres
+      - eternabridge
+    networks:
+      - hard_isolated_secure_net
+
+  omnilynx:
+    build:
+      context: services/ai/omnilynx
+      dockerfile: Dockerfile
+    container_name: omnilynx
+    environment:
+      GPU_RUNTIME: ${GPU_RUNTIME}
+      NATS_USER: ${NATS_USER}
+      NATS_PASSWORD: ${NATS_PASSWORD}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    networks:
+      - identity_auth_net
+
+  hololynx:
+    build:
+      context: services/immersive/hololynx
+      dockerfile: Dockerfile
+    container_name: hololynx
+    environment:
+      NATS_USER: ${NATS_USER}
+      NATS_PASSWORD: ${NATS_PASSWORD}
+    depends_on:
+      - eterna_net
+      - nats
+    networks:
+      - public_creative_net
+      - identity_auth_net
+
+  personalynx:
+    build:
+      context: services/immersive/personalynx
+      dockerfile: Dockerfile
+    container_name: personalynx
+    environment:
+      NATS_USER: ${NATS_USER}
+      NATS_PASSWORD: ${NATS_PASSWORD}
+    depends_on:
+      - hololynx
+      - nats
+    networks:
+      - public_creative_net
+      - identity_auth_net
+
+  ecosystem_marketlynx:
+    build:
+      context: services/ecosystem/marketlynx
+      dockerfile: Dockerfile
+    container_name: marketlynx
+    networks:
+      - public_creative_net
+      - identity_auth_net
+
+  ecosystem_socialynx:
+    build:
+      context: services/ecosystem/socialynx
+      dockerfile: Dockerfile
+    container_name: socialynx
+    networks:
+      - public_creative_net
+      - identity_auth_net
+
+  ecosystem_forgelynx:
+    build:
+      context: services/ecosystem/forgelynx
+      dockerfile: Dockerfile
+    container_name: forgelynx
+    networks:
+      - public_creative_net
+      - identity_auth_net
+
+  ecosystem_joblynx:
+    build:
+      context: services/ecosystem/joblynx
+      dockerfile: Dockerfile
+    container_name: joblynx
+    networks:
+      - public_creative_net
+      - identity_auth_net
+
+  ecosystem_cinemalynx:
+    build:
+      context: services/ecosystem/cinemalynx
+      dockerfile: Dockerfile
+    container_name: cinemalynx
+    networks:
+      - public_creative_net
+      - identity_auth_net
+
+  ecosystem_gamelynx:
+    build:
+      context: services/ecosystem/gamelynx-genesis
+      dockerfile: Dockerfile
+    container_name: gamelynx_genesis
+    networks:
+      - public_creative_net
+      - identity_auth_net
