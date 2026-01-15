@@ -1,14 +1,15 @@
 const express = require('express');
 const { describeConnection } = require('../services/web3Gateway');
 
-function createHubRouter() {
+function createHubRouter(config = {}) {
   const router = express.Router();
+  const hubName = config.hubName || 'EternaNet Lynx Planar Main Hub';
 
   router.get('/', (req, res) => {
     const context = req.context || {};
 
     res.json({
-      hub: 'EternaNet Lynx Planar Main Hub',
+      hub: hubName,
       requestId: context.requestId,
       web2: context.web2,
       web3: describeConnection(context.web3 || {}),

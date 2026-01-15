@@ -11,5 +11,5 @@ const app = createApp({ rpcUrl: RPC_URL, projectId: PROJECT_ID });
 const server = http.createServer(app);
 
 server.listen(PORT, () => {
-console.log(`EternaNet hub listening on port ${PORT}`);
+  console.log(`EternaNet hub listening on port ${PORT}`);
 });
