@@ -21,6 +21,7 @@ function buildWeb3Context(config = {}, env = process.env) {
 
 /**
  * Middleware factory that enriches requests with EternaNet context.
+ * Generates an RFC4122 v4 requestId when none is supplied via the x-request-id header.
  * @param {Object} [config] optional web3 configuration overrides.
  * @returns {import('express').RequestHandler} Express middleware
  */
