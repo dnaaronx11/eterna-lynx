@@ -1,3 +1,8 @@
+/**
+ * Normalizes the web3 context into a transport-agnostic shape for responses.
+ * @param {{rpcUrl?: string|null, projectId?: string|null, status?: string}} [web3Context]
+ * @returns {{status: string, rpcUrl: string|null, projectId: string|null, mode: string, reachable: boolean}}
+ */
 function describeConnection(web3Context = {}) {
   const hasRpc = Boolean(web3Context.rpcUrl);
 

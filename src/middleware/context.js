@@ -1,5 +1,13 @@
 const crypto = require('node:crypto');
 
+/**
+ * Builds the web3 context attached to each request.
+ * @param {Object} [config] optional configuration override.
+ * @param {string} [config.rpcUrl] RPC endpoint to mark the hub as web3-enabled.
+ * @param {string} [config.projectId] Project identifier passed through responses.
+ * @param {NodeJS.ProcessEnv} [env] environment provider (defaults to process.env).
+ * @returns {{rpcUrl: string|null, projectId: string|null, status: string}}
+ */
 function buildWeb3Context(config = {}, env = process.env) {
   const rpcUrl = config.rpcUrl || env.ETERNA_RPC_URL || null;
   const projectId = config.projectId || env.ETERNA_PROJECT_ID || null;
@@ -11,6 +19,11 @@ function buildWeb3Context(config = {}, env = process.env) {
   };
 }
 
+/**
+ * Middleware factory that enriches requests with EternaNet context.
+ * @param {Object} [config] optional web3 configuration overrides.
+ * @returns {import('express').RequestHandler} Express middleware
+ */
 function createContext(config = {}) {
   return (req, res, next) => {
     req.context = {

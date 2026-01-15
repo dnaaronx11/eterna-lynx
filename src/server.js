@@ -1,3 +1,5 @@
+// Entry point for the EternaNet Lynx hub; bootstraps Express using PORT,
+// ETERNA_RPC_URL, and ETERNA_PROJECT_ID environment variables.
 const http = require('node:http');
 const createApp = require('./app');
 
