@@ -99,6 +99,8 @@ model Post {
   // Relations
   comments            Comment[]
   likes               Like[]
+
+  @@index([userId, createdAt])
 }
 
 model Comment {
