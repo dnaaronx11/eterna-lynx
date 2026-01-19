@@ -39,12 +39,15 @@ model DIDDocument {
 model VaultKey {
   id                  String      @id @default(cuid())
   userId              String
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   keyEncryptionKey    String      // Wrapped KEK
   dataEncryptionKey   String      // Wrapped DEK
   stegoImagePath      String?      // Path to steganographic image
   rotatedAt           DateTime? 
   expiresAt           DateTime
   createdAt           DateTime    @default(now())
+
+  @@index([userId])
 }
 
 // ============ FINANCIAL PLANE (FinanciaLynX/WalletLynX) ============
