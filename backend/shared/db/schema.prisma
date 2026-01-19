@@ -73,8 +73,6 @@ model Wallet {
 
 model Transaction {
   id                  String      @id @default(cuid())
-  fromUserId          String
-  fromUser            User        @relation(fields: [fromUserId], references: [id])
   toUserId            String? 
   toUser              User?       @relation(fields: [toUserId], references: [id])
   fromWalletId        String
