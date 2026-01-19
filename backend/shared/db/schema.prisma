@@ -21,18 +21,25 @@ model User {
   
   // Relations
   wallet              Wallet? 
+  vaultKeys           VaultKey[]
   posts               Post[]
   relationships       Relationship[] @relation("follower")
   followers           Relationship[] @relation("following")
   transactions        Transaction[]
+  transactionsReceived Transaction[] @relation("transactionRecipient")
   auditLogs           AuditLog[]
   comments            Comment[]
   likes               Like[]
+  listings            Listing[]
+  offers              Offer[]
+  didDocument         DIDDocument?
 }
 
 model DIDDocument {
   id                  String      @id @default(cuid())
   did                 String      @unique
+  userId              String      @unique
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   publicKey           String
   serviceEndpoint     String
   createdAt           DateTime    @default(now())
@@ -75,7 +82,8 @@ model Transaction {
   id                  String      @id @default(cuid())
   fromUserId          String
   fromUser            User        @relation(fields: [fromUserId], references: [id])
-  toUserId            String? 
+  toUserId            String?
+  toUser              User?       @relation("transactionRecipient", fields: [toUserId], references: [id])
   fromWalletId        String
   fromWallet          Wallet      @relation(fields: [fromWalletId], references: [id])
   
@@ -86,6 +94,10 @@ model Transaction {
   
   createdAt           DateTime    @default(now())
   confirmedAt         DateTime?
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([status])
 }
 
 // ============ PUBLIC PLANE (SociaLynX) ============
@@ -112,9 +124,14 @@ model Comment {
   id                  String      @id @default(cuid())
   postId              String
   post                Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId              String
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   content             String
   createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@index([postId])
 }
 
 model Like {
@@ -122,6 +139,7 @@ model Like {
   postId              String
   post                Post        @relation(fields: [postId], references: [id], onDelete:  Cascade)
   userId              String
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   createdAt           DateTime    @default(now())
   
@@ -144,6 +162,8 @@ model Relationship {
 // ============ COMMERCIAL PLANE (MarketLynX) ============
 model Listing {
   id                  String      @id @default(cuid())
+  userId              String
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   title               String
   description         String
   price               Decimal
@@ -161,12 +181,16 @@ model Offer {
   id                  String      @id @default(cuid())
   listingId           String
   listing             Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyerId             String
+  buyer               User        @relation(fields: [buyerId], references: [id], onDelete: Cascade)
   
   vendorName          String
   vendorPrice         Decimal
   priceLevel          String      @default("NORMAL") // CHEAP, NORMAL, RISKY
   
   createdAt           DateTime    @default(now())
+
+  @@index([listingId])
 }
 
 // ============ SECURITY & AUDIT ============
