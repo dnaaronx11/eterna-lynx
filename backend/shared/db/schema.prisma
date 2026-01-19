@@ -87,6 +87,10 @@ model Transaction {
   confirmedAt         DateTime?
 
   @@index([fromUserId])
+  @@index([toUserId])
+  @@index([status])
+
+  @@index([fromUserId])
 }
 
 // ============ PUBLIC PLANE (SociaLynX) ============
