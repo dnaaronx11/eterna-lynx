@@ -26,6 +26,8 @@ model User {
   followers           Relationship[] @relation("following")
   transactions        Transaction[]
   auditLogs           AuditLog[]
+  comments            Comment[]
+  likes               Like[]
 }
 
 model DIDDocument {
