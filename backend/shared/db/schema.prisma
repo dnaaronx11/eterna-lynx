@@ -11,7 +11,7 @@ generator client {
 model User {
   id                  String      @id @default(cuid())
   email               String      @unique
-  password            String
+  passwordHash        String      // Hashed password (e.g., bcrypt/argon2), never store plaintext
   did                 String      @unique // Decentralized Identifier
   biometricHash       String?      // Retinal scan hash
   trustScore          Float       @default(1.0)
