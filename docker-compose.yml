@@ -1,1 +1,244 @@
+version: '3.8'
 
+services:
+  # ============ INFRASTRUCTURE ============
+  postgres_db:
+    image: postgres: 16-alpine
+    restart: unless-stopped
+    environment: 
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports: 
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/seed-db.sql:/docker-entrypoint-initdb. d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis_cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test:  ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT:  2181
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_INIT_LIMIT: 5
+    ports:
+      - "2181:2181"
+
+  kafka_broker:
+    image: confluentinc/cp-kafka:7.5.0
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper: 2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_broker:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions.sh", "--bootstrap-server", "kafka_broker:9092"]
+      interval:  10s
+      timeout: 5s
+      retries: 5
+
+  # ============ GATEWAY & ORCHESTRATION ============
+  lynxverse-gateway:
+    build: 
+      context: ./gateway/lynxverse-router
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis_cache: 
+        condition: service_healthy
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=80
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+    ports:
+      - "80:80"
+    volumes:
+      - ./gateway/lynxverse-router/src:/app/src
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ============ BACKEND SERVICES ============
+  security-validator:
+    build:
+      context: ./backend/services/security-validator-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=3001
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - BIOMETRIC_ENABLED=${BIOMETRIC_ENABLED}
+      - STEGANOGRAPHY_ENABLED=${STEGANOGRAPHY_ENABLED}
+    ports:
+      - "3001:3001"
+    volumes: 
+      - ./backend/services/security-validator-service/src:/app/src
+
+  finance-ledger:
+    build:
+      context: ./backend/services/finance-ledger-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on: 
+      postgres_db:
+        condition: service_healthy
+      kafka_broker:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=3002
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - KAFKA_BROKER=${KAFKA_BROKER}
+      - KAFKA_TOPIC_FINANCE=${KAFKA_TOPIC_FINANCE}
+    ports:
+      - "3002:3002"
+    volumes: 
+      - ./backend/services/finance-ledger-service/src:/app/src
+
+  social-feed:
+    build:
+      context: ./backend/services/social-feed-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres_db:
+        condition:  service_healthy
+      redis_cache:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=3003
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    ports:
+      - "3003:3003"
+    volumes: 
+      - ./backend/services/social-feed-service/src:/app/src
+
+  market-aggregator:
+    build:
+      context: ./backend/services/market-aggregator-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on: 
+      postgres_db:
+        condition: service_healthy
+      kafka_broker:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=3004
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - KAFKA_BROKER=${KAFKA_BROKER}
+      - KAFKA_TOPIC_MARKET=${KAFKA_TOPIC_MARKET}
+    ports: 
+      - "3004:3004"
+    volumes:
+      - ./backend/services/market-aggregator-service/src:/app/src
+
+  # ============ AI CORE ============
+  quantum-nexus:
+    build:
+      context: ./ai-core/quantum-nexus
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      kafka_broker:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KAFKA_BROKER=${KAFKA_BROKER}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    ports:
+      - "8081:8081"
+    volumes: 
+      - ./ai-core/quantum-nexus/app:/app/app
+
+  # ============ FRONTEND ============
+  eterna-net-frontend:
+    build:
+      context: ./frontend/eterna-net
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - lynxverse-gateway
+    environment:
+      - REACT_APP_API_URL=http://localhost
+      - REACT_APP_GATEWAY_URL=http://localhost
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/eterna-net/src:/app/src
+
+volumes:
+  postgres_data:
+  redis_data: 
+
+networks:
+  default:
+    name: eternalynx-network
