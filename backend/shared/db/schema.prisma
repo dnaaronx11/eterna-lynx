@@ -170,6 +170,8 @@ model Offer {
   priceLevel          String      @default("NORMAL") // CHEAP, NORMAL, RISKY
   
   createdAt           DateTime    @default(now())
+
+  @@index([listingId])
 }
 
 // ============ SECURITY & AUDIT ============
