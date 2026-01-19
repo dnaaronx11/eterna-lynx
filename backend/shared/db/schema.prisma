@@ -115,6 +115,8 @@ model Comment {
   
   content             String
   createdAt           DateTime    @default(now())
+
+  @@index([postId])
 }
 
 model Like {
