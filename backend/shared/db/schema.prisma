@@ -87,6 +87,8 @@ model Transaction {
   
   createdAt           DateTime    @default(now())
   confirmedAt         DateTime?
+
+  @@index([fromUserId])
 }
 
 // ============ PUBLIC PLANE (SociaLynX) ============
