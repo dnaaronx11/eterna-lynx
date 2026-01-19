@@ -1,0 +1,182 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============ IDENTITY PLANE (SecuriLynX/EternaID) ============
+model User {
+  id                  String      @id @default(cuid())
+  email               String      @unique
+  password            String
+  did                 String      @unique // Decentralized Identifier
+  biometricHash       String?      // Retinal scan hash
+  trustScore          Float       @default(1.0)
+  role                String      @default("USER") // USER, ADMIN, GOVERNOR
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  
+  // Relations
+  wallet              Wallet? 
+  posts               Post[]
+  relationships       Relationship[] @relation("follower")
+  followers           Relationship[] @relation("following")
+  transactions        Transaction[]
+  auditLogs           AuditLog[]
+}
+
+model DIDDocument {
+  id                  String      @id @default(cuid())
+  did                 String      @unique
+  publicKey           String
+  serviceEndpoint     String
+  createdAt           DateTime    @default(now())
+}
+
+model VaultKey {
+  id                  String      @id @default(cuid())
+  userId              String
+  keyEncryptionKey    String      // Wrapped KEK
+  dataEncryptionKey   String      // Wrapped DEK
+  stegoImagePath      String?      // Path to steganographic image
+  rotatedAt           DateTime? 
+  expiresAt           DateTime
+  createdAt           DateTime    @default(now())
+}
+
+// ============ FINANCIAL PLANE (FinanciaLynX/WalletLynX) ============
+model Wallet {
+  id                  String      @id @default(cuid())
+  userId              String      @unique
+  user                User        @relation(fields:  [userId], references: [id], onDelete: Cascade)
+  
+  // Multi-asset support
+  usdBalance          Decimal     @default(0) // DigiUSD balance
+  unicBalance         Decimal     @default(0) // Unicoin balance
+  ethBalance          Decimal     @default(0) // Ethereum balance
+  
+  chainAddress        String      @unique // Blockchain address
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  
+  // Relations
+  transactions        Transaction[]
+}
+
+model Transaction {
+  id                  String      @id @default(cuid())
+  fromUserId          String
+  fromUser            User        @relation(fields: [fromUserId], references: [id])
+  toUserId            String? 
+  fromWalletId        String
+  fromWallet          Wallet      @relation(fields: [fromWalletId], references: [id])
+  
+  amount              Decimal
+  tokenType           String      // USDD, UNIC, ETH
+  status              String      @default("PENDING") // PENDING, CONFIRMED, FAILED
+  chainTxHash         String?     // Blockchain transaction hash
+  
+  createdAt           DateTime    @default(now())
+  confirmedAt         DateTime?
+}
+
+// ============ PUBLIC PLANE (SociaLynX) ============
+model Post {
+  id                  String      @id @default(cuid())
+  userId              String
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  content             String
+  imageUrl            String?
+  visibility          String      @default("PUBLIC") // PUBLIC, PRIVATE, FRIENDS
+  
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  
+  // Relations
+  comments            Comment[]
+  likes               Like[]
+}
+
+model Comment {
+  id                  String      @id @default(cuid())
+  postId              String
+  post                Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  content             String
+  createdAt           DateTime    @default(now())
+}
+
+model Like {
+  id                  String      @id @default(cuid())
+  postId              String
+  post                Post        @relation(fields: [postId], references: [id], onDelete:  Cascade)
+  userId              String
+  
+  createdAt           DateTime    @default(now())
+  
+  @@unique([postId, userId])
+}
+
+model Relationship {
+  id                  String      @id @default(cuid())
+  followerId          String
+  follower            User        @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  
+  followingId         String
+  following           User        @relation("following", fields:  [followingId], references: [id], onDelete: Cascade)
+  
+  createdAt           DateTime    @default(now())
+  
+  @@unique([followerId, followingId])
+}
+
+// ============ COMMERCIAL PLANE (MarketLynX) ============
+model Listing {
+  id                  String      @id @default(cuid())
+  title               String
+  description         String
+  price               Decimal
+  category            String
+  imageUrl            String?
+  
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  
+  // Relations
+  offers              Offer[]
+}
+
+model Offer {
+  id                  String      @id @default(cuid())
+  listingId           String
+  listing             Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  
+  vendorName          String
+  vendorPrice         Decimal
+  priceLevel          String      @default("NORMAL") // CHEAP, NORMAL, RISKY
+  
+  createdAt           DateTime    @default(now())
+}
+
+// ============ SECURITY & AUDIT ============
+model AuditLog {
+  id                  String      @id @default(cuid())
+  userId              String
+  user                User        @relation(fields:  [userId], references: [id], onDelete: Cascade)
+  
+  action              String      // LOGIN, DATA_ACCESS, TRANSACTION, etc.
+  resource            String?      // What was accessed
+  status              String      // SUCCESS, FAILURE, VETO
+  reason              String?     // Why it failed/was vetoed
+  
+  ipAddress           String?
+  userAgent           String?
+  
+  createdAt           DateTime    @default(now())
+  
+  @@index([userId, createdAt])
+}
