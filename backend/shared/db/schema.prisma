@@ -132,6 +132,7 @@ model Comment {
   updatedAt           DateTime    @updatedAt
 
   @@index([postId])
+  @@index([userId])
 }
 
 model Like {
@@ -175,6 +176,8 @@ model Listing {
   
   // Relations
   offers              Offer[]
+
+  @@index([userId])
 }
 
 model Offer {
@@ -191,6 +194,7 @@ model Offer {
   createdAt           DateTime    @default(now())
 
   @@index([listingId])
+  @@index([buyerId])
 }
 
 // ============ SECURITY & AUDIT ============
