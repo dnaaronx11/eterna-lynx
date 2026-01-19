@@ -76,6 +76,7 @@ model Transaction {
   fromUserId          String
   fromUser            User        @relation(fields: [fromUserId], references: [id])
   toUserId            String? 
+  toUser              User?       @relation(fields: [toUserId], references: [id])
   fromWalletId        String
   fromWallet          Wallet      @relation(fields: [fromWalletId], references: [id])
   
