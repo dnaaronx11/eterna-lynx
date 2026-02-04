@@ -10,6 +10,14 @@ const PROJECT_ID = process.env.ETERNA_PROJECT_ID || null;
 const app = createApp({ rpcUrl: RPC_URL, projectId: PROJECT_ID });
 const server = http.createServer(app);
 
+server.on('error', (err) => {
+  if (err && err.code === 'EADDRINUSE') {
+    console.error(`Failed to start EternaNet hub: port ${PORT} is already in use.`);
+  } else {
+    console.error('Failed to start EternaNet hub due to an unexpected error:', err);
+  }
+  process.exit(1);
+});
 server.listen(PORT, () => {
   console.log(`EternaNet hub listening on port ${PORT}`);
 });
