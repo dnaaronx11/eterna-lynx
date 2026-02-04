@@ -1,0 +1,16 @@
+{
+  "name": "eterna-lynx",
+  "version": "1.0.0",
+  "description": "EternaNet web2/web3 hub middleware and backend skeleton for Lynx planar system",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "5.2.1"
+  }
+}
