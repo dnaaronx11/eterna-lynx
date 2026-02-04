@@ -1,0 +1,35 @@
+const express = require('express');
+const createContext = require('./middleware/context');
+const hubRouter = require('./routes/hub');
+
+function createApp(config = {}) {
+  const app = express();
+
+  app.use(express.json());
+  app.use(createContext(config));
+
+  if (typeof config.extendApp === 'function') {
+    config.extendApp(app);
+  }
+
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok', uptime: process.uptime() });
+  });
+
+  app.use('/hub', hubRouter(config));
+
+  app.use((req, res) => {
+    res.status(404).json({ error: 'Not found' });
+  });
+
+  // eslint-disable-next-line no-unused-vars
+  app.use((err, req, res, next) => {
+    console.error('Unhandled error in request:', err);
+    // Simple error guard to avoid leaking details to callers
+    res.status(500).json({ error: 'Internal server error' });
+  });
+
+  return app;
+}
+
+module.exports = createApp;
