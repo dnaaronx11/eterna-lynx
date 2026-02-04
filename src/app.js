@@ -8,6 +8,10 @@ function createApp(config = {}) {
   app.use(express.json());
   app.use(createContext(config));
 
+  if (typeof config.extendApp === 'function') {
+    config.extendApp(app);
+  }
+
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', uptime: process.uptime() });
   });

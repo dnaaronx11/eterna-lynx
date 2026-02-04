@@ -27,10 +27,12 @@ function buildWeb3Context(config = {}, env = process.env) {
  */
 function createContext(config = {}) {
   return (req, res, next) => {
+    const ip = typeof req.ip === 'string' && req.ip.trim() ? req.ip : 'unknown';
+
     req.context = {
       requestId: req.headers['x-request-id'] || crypto.randomUUID(),
       web2: {
-        ip: req.ip,
+        ip,
         userAgent: req.headers['user-agent'] || null,
       },
       web3: buildWeb3Context(config),
