@@ -20,6 +20,7 @@ model User {
   updatedAt           DateTime    @updatedAt
   
   // Relations
+  didDocument         DIDDocument?
   wallet              Wallet? 
   posts               Post[]
   relationships       Relationship[] @relation("follower")
@@ -33,6 +34,8 @@ model User {
 model DIDDocument {
   id                  String      @id @default(cuid())
   did                 String      @unique
+  userId              String      @unique
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   publicKey           String
   serviceEndpoint     String
   createdAt           DateTime    @default(now())
