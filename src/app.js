@@ -20,6 +20,7 @@ function createApp(config = {}) {
 
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
+    console.error('Unhandled error in request:', err);
     // Simple error guard to avoid leaking details to callers
     res.status(500).json({ error: 'Internal server error' });
   });
