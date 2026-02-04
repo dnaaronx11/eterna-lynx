@@ -49,3 +49,23 @@ test('hub reports fallback web2 mode when web3 is not configured', async (t) => 
   assert.strictEqual(body.web3.status, 'disconnected');
   assert.strictEqual(body.web3.reachable, false);
 });
+
+test('error handler catches errors and returns 500 response', async (t) => {
+  // Create app with a test route that throws an error
+  const server = await startServer({
+    testRoutes: (app) => {
+      app.get('/test-error', (req, res, next) => {
+        next(new Error('Test error'));
+      });
+    }
+  });
+  
+  t.after(() => server.close());
+
+  const { port } = server.address();
+  const response = await fetch(`http://127.0.0.1:${port}/test-error`);
+
+  assert.strictEqual(response.status, 500);
+  const body = await response.json();
+  assert.strictEqual(body.error, 'Internal server error');
+});

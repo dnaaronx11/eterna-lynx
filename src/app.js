@@ -14,6 +14,11 @@ function createApp(config = {}) {
 
   app.use('/hub', hubRouter(config));
 
+  // Allow test routes to be injected before 404 handler
+  if (config.testRoutes) {
+    config.testRoutes(app);
+  }
+
   app.use((req, res) => {
     res.status(404).json({ error: 'Not found' });
   });
