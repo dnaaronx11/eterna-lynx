@@ -15,7 +15,7 @@ function createApp(config = {}) {
   app.use('/hub', hubRouter(config));
 
   // Allow test routes to be injected before 404 handler (test environment only)
-  if (config.testRoutes && (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === undefined)) {
+  if (config.testRoutes && process.env.NODE_ENV === 'test') {
     config.testRoutes(app);
   }
 
