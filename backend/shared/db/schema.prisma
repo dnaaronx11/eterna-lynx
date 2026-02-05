@@ -22,17 +22,24 @@ model User {
   // Relations
   didDocument         DIDDocument?
   wallet              Wallet? 
+  vaultKeys           VaultKey[]
   posts               Post[]
   relationships       Relationship[] @relation("follower")
   followers           Relationship[] @relation("following")
-  transactions        Transaction[]
+  sentTransactions    Transaction[] @relation("sentTransactions")
+  receivedTransactions Transaction[] @relation("receivedTransactions")
   auditLogs           AuditLog[]
   comments            Comment[]
   likes               Like[]
+  didDocument         DIDDocument?
+  listings            Listing[]
+  offers              Offer[]
 }
 
 model DIDDocument {
   id                  String      @id @default(cuid())
+  userId              String      @unique
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   did                 String      @unique
   userId              String      @unique
   user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -76,8 +83,10 @@ model Wallet {
 
 model Transaction {
   id                  String      @id @default(cuid())
+  fromUserId          String
+  fromUser            User        @relation("sentTransactions", fields: [fromUserId], references: [id])
   toUserId            String? 
-  toUser              User?       @relation(fields: [toUserId], references: [id])
+  toUser              User?       @relation("receivedTransactions", fields: [toUserId], references: [id])
   fromWalletId        String
   fromWallet          Wallet      @relation(fields: [fromWalletId], references: [id])
   
@@ -92,8 +101,6 @@ model Transaction {
   @@index([fromUserId])
   @@index([toUserId])
   @@index([status])
-
-  @@index([fromUserId])
 }
 
 // ============ PUBLIC PLANE (SociaLynX) ============
@@ -157,6 +164,8 @@ model Relationship {
 // ============ COMMERCIAL PLANE (MarketLynX) ============
 model Listing {
   id                  String      @id @default(cuid())
+  userId              String
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   title               String
   description         String
   price               Decimal
@@ -174,6 +183,8 @@ model Offer {
   id                  String      @id @default(cuid())
   listingId           String
   listing             Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyerId             String
+  buyer               User        @relation(fields: [buyerId], references: [id], onDelete: Cascade)
   
   vendorName          String
   vendorPrice         Decimal
