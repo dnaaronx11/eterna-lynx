@@ -1,0 +1,17 @@
+node_modules
+.dist
+coverage
+.env
+*.log
+logs
+pnpm-lock.yaml
+package-lock.json
+apps/**/dist
+apps/**/node_modules
+packages/**/dist
+packages/**/node_modules
+planes/**/dist
+planes/**/node_modules
+__pycache__
+.pytest_cache
+.local
